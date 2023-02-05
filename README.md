@@ -15,7 +15,7 @@ The html page also displays information about the temperature and humidity in th
 ### Flashing esp8266 with espruino
 
 We will use [Espruino](https://www.espruino.com/) to programming ESP8266 microcontroller on JavaScript language.
-There is a [page](https://www.espruino.com/EspruinoESP8266) with the features and limitations of this firmware on esp8266.
+There is a [page](https://www.espruino.com/EspruinoESP8266) with the features and limitations of this firmware on esp8266. Implemented JavaScript features in espruino can be found [here](https://www.espruino.com/Features).
 
 If you try to flash the microcontroller first time, you may need to install [driver](https://myrobot.ru/downloads/driver-ch340g-nodemcu.php) for CH340. NodeMCU usually has this microschema on the board, but if your has another chip, e.g PL2303HX or CP2102, then you need to install driver for yours.
 
