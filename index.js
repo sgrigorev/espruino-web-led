@@ -11,16 +11,24 @@ const DHT_PIN = 13;
 
 // Wi-Fi settings
 let wifi = require("Wifi");
-const wifiSettingsFile = 'wifi_settings.json';
+const WIFI_SETTINGS_FILE = 'wifi_settings.json';
 let wifiSettings;
-const ENABLE_AP_MODE = false;
-const WIFI_NAME = "TP-Link_5CB0";
-const WIFI_OPTIONS = { password: "121qaz212" };
 
 // The last data that was POSTed to us
 let postData = {
   ledEnabled: false
 };
+
+const cssStyle = `
+<style>
+  body { font-size: 50px; }
+  input, select {
+    height: 50px;
+    font-size: 30px;
+    width: 300px;
+  }
+</style>
+`
 
 // Inits when turning on led blink modes
 let intervalId;
@@ -37,6 +45,7 @@ function sendPage(res) {
     .then((data) => {
       const html = `
     <html>
+    ${cssStyle}
      <body>
       <label>Temperature: ${data.err ? 'Failed to read sensor' : data.temp + '°C'}</label>
       </p></p>
@@ -81,6 +90,7 @@ function sendPage(res) {
 function sendWiFiPage(res) {
   const html = `
   <html>
+  ${cssStyle}
     <body>
     <form action="#" method="post" onsubmit="alert('Reboot the microcontroller to apply settings');">
       <label>Last IP: ${wifiSettings && wifiSettings.lastIp || ''}</label>
@@ -163,7 +173,7 @@ function saveWiFiSettings(req, callback) {
       const els = el.split("=");
       wifiSettings[els[0]] = decodeURIComponent(els[1]);
     });
-    storage.writeJSON(wifiSettingsFile, wifiSettings);
+    storage.writeJSON(WIFI_SETTINGS_FILE, wifiSettings);
     // call our callback (to send the HTML result)
     callback();
   });
@@ -336,7 +346,7 @@ function onWiFiConnected() {
   wifi.getIP(function (err, ip) {
     console.log("Connect to http://" + ip.ip);
     wifiSettings.lastIp = ip.ip;
-    storage.writeJSON(wifiSettingsFile, wifiSettings);
+    storage.writeJSON(WIFI_SETTINGS_FILE, wifiSettings);
     require("http").createServer(onPageRequest).listen(80);
   });
 }
@@ -359,7 +369,7 @@ function startWifiAP() {
 // This function is run on microcontroller start
 function onInit() {
   try {
-    wifiSettings = storage.readJSON(wifiSettingsFile);
+    wifiSettings = storage.readJSON(WIFI_SETTINGS_FILE);
   } catch (err) {
     console.log(err.message);
   }
