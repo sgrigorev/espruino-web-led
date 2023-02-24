@@ -1,3 +1,5 @@
+const storage = require("Storage");
+
 // Neopixel settings
 const neopixel = require("neopixel");
 const LED_STRIP_PIN = 12;
@@ -9,9 +11,11 @@ const DHT_PIN = 13;
 
 // Wi-Fi settings
 let wifi = require("Wifi");
-const ENABLE_AP_MODE = true;
-const WIFI_NAME = "";
-const WIFI_OPTIONS = { password: "" };
+const wifiSettingsFile = 'wifi_settings.json';
+let wifiSettings;
+const ENABLE_AP_MODE = false;
+const WIFI_NAME = "TP-Link_5CB0";
+const WIFI_OPTIONS = { password: "121qaz212" };
 
 // The last data that was POSTed to us
 let postData = {
@@ -74,18 +78,50 @@ function sendPage(res) {
     });
 }
 
+function sendWiFiPage(res) {
+  const html = `
+  <html>
+    <body>
+    <form action="#" method="post" onsubmit="alert('Reboot the microcontroller to apply settings');">
+      <label>Last IP: ${wifiSettings && wifiSettings.lastIp || ''}</label>
+      </p></p>
+      <label for="ssid">SSID:</label>
+      <input type="text" id="ssid" name="ssid" value="${wifiSettings && wifiSettings.ssid || ''}"/>
+      </p></p>
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" value="${wifiSettings && wifiSettings.password || ''}"/>
+      </p></p>
+      <label for="startApMode">Start access point mode:</label>
+      <input type="checkbox" id="startApMode" name="startApMode" value="0" ${wifiSettings && wifiSettings.startApMode ? "checked" : ""}>
+      </p></p>
+      <button>Submit</button>
+    </form>
+    </body>
+  </html>
+  `
+  res.writeHead(200, { 'Content-Type': 'text/html', 'Content-Length': html.length });
+  res.end(html);
+}
+
 // This handles the HTTP request itself and serves up the webpage or a
 // 404 not found page
 function onPageRequest(req, res) {
   const parsedUrl = url.parse(req.url, true);
-  if (parsedUrl.pathname == "/") {
+  if (parsedUrl.pathname == "/wifi") {
+    if (req.method == "POST" && req.headers["Content-Type"] == "application/x-www-form-urlencoded") {
+      saveWiFiSettings(req, function () { sendPage(res); });
+    } else {
+      sendWiFiPage(res);
+    }
+  } else if (parsedUrl.pathname == "/") {
     // handle the '/' (root) page...
     // If we had a POST, handle the data we're being given
     if (req.method == "POST" &&
-      req.headers["Content-Type"] == "application/x-www-form-urlencoded")
+      req.headers["Content-Type"] == "application/x-www-form-urlencoded") {
       handlePOST(req, function () { sendPage(res); });
-    else
+    } else {
       sendPage(res);
+    }
   } else {
     // Page not found - return 404
     res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -113,6 +149,21 @@ function handlePOST(req, callback) {
     } else {
       setupLed(postData);
     }
+    // call our callback (to send the HTML result)
+    callback();
+  });
+}
+
+function saveWiFiSettings(req, callback) {
+  var data = "";
+  req.on('data', function (d) { data += d; });
+  req.on('end', function () {
+    wifiSettings = {};
+    data.split("&").forEach(function (el) {
+      const els = el.split("=");
+      wifiSettings[els[0]] = decodeURIComponent(els[1]);
+    });
+    storage.writeJSON(wifiSettingsFile, wifiSettings);
     // call our callback (to send the HTML result)
     callback();
   });
@@ -281,26 +332,43 @@ function disableLed() {
 }
 
 // This is called when we have an internet connection
-function onConnected() {
+function onWiFiConnected() {
   wifi.getIP(function (err, ip) {
     console.log("Connect to http://" + ip.ip);
+    wifiSettings.lastIp = ip.ip;
+    storage.writeJSON(wifiSettingsFile, wifiSettings);
     require("http").createServer(onPageRequest).listen(80);
   });
 }
 
+function connectToWifi(ssid, password) {
+  wifi.connect(ssid, { password: password }, function (err) {
+    if (err) {
+      console.log("Connection error: " + err);
+      return;
+    }
+    console.log("Connected!");
+    onWiFiConnected();
+  });
+}
+
+function startWifiAP() {
+  wifi.startAP('Espruino_Server', {}, onWiFiConnected);
+}
+
 // This function is run on microcontroller start
 function onInit() {
-  if (ENABLE_AP_MODE) {
-    wifi.startAP('Espruino_Server', {}, onConnected);
+  try {
+    wifiSettings = storage.readJSON(wifiSettingsFile);
+  } catch (err) {
+    console.log(err.message);
+  }
+
+  console.log(`WiFi settings: ${JSON.stringify(wifiSettings)}`);
+  if (wifiSettings !== undefined && !wifiSettings.startApMode) {
+    connectToWifi(wifiSettings.ssid, wifiSettings.password);
   } else {
-    wifi.connect(WIFI_NAME, WIFI_OPTIONS, function (err) {
-      if (err) {
-        console.log("Connection error: " + err);
-        return;
-      }
-      console.log("Connected!");
-      onConnected();
-    });
+    startWifiAP();
   }
 }
 
