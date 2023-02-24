@@ -4,6 +4,11 @@ This project was made basically in order to explore the possibilities of Espruin
 The `index.js` contains logic of several modes of operation of the LED strip, e.g. blink, rainbow, running dots. These modes can be changed through the web interface.
 The html page also displays information about the temperature and humidity in the room from the connected DHT22 sensor.
 
+On first boot the wifi starts in access point mode with `Espruino_Server` SSID.
+Connect to it and type `192.168.4.1` in the browser to open web interface.
+
+If you wish to connect to an existing wifi network you need open `/wifi` page, type SSID and password, click submit and reboot the microcontroller.
+
 ## Used hardware
 
 1. [ESP8266 NodeMCU microcontroller](https://aliexpress.ru/item/32520574539.html?sku_id=59096362340&spm=a2g2w.productlist.search_results.0.32fd4aa6JYIUfF)
@@ -39,10 +44,8 @@ The full connection schema is following:
 ### Send js code to esp8266
 
 1. Open [Web IDE](https://www.espruino.com/ide/)
-2. Click the connect button at  the left top corner
+2. Click the connect button at the left top corner
 3. Choose the port which microcontroller connected to
 4. If everything is ok you go to REPL mode
 5. Copy the code to the right part of window
 6. Change destination to flash (arrow near icon in the middle of window) and click on this button to start flashing
-
-After that find the `Espruino_Server` Wi-Fi, connect to it and type `192.168.4.1` in the browser. If you wish to connect to an existing wifi, then set variable `ENABLE_AP_MODE` to false and fill `WIFI_NAME` and `WIFI_OPTIONS`.
