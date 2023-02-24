@@ -1,16 +1,16 @@
-const storage = require("Storage");
+const storage = require('Storage');
 
 // Neopixel settings
-const neopixel = require("neopixel");
+const neopixel = require('neopixel');
 const LED_STRIP_PIN = 12;
 const PIXELS_COUNT = 30;
 
-// dht22 settings
-const dht = require("DHT22");
+// dht22 settings 
+const dht = require('DHT22');
 const DHT_PIN = 13;
 
 // Wi-Fi settings
-let wifi = require("Wifi");
+let wifi = require('Wifi');
 const WIFI_SETTINGS_FILE = 'wifi_settings.json';
 let wifiSettings;
 
@@ -19,6 +19,60 @@ let postData = {
   ledEnabled: false
 };
 
+// This function is run on microcontroller start
+function onInit() {
+  try {
+    wifiSettings = storage.readJSON(WIFI_SETTINGS_FILE);
+  } catch (err) {
+    console.log(err.message);
+  }
+
+  console.log(`WiFi settings: ${JSON.stringify(wifiSettings)}`);
+  if (wifiSettings !== undefined && !wifiSettings.startApMode) {
+    connectToWifi(wifiSettings.ssid, wifiSettings.password);
+  } else {
+    startWifiAP();
+  }
+}
+
+// Comment this line out if you chosed to save code in flash
+// onInit();
+
+// This is called when we have an internet connection
+function onWiFiConnected() {
+  wifi.getIP(function (err, ip) {
+    console.log('Connect to http://' + ip.ip);
+    if (wifiSettings) {
+      wifiSettings.lastIp = ip.ip;
+    }
+    storage.writeJSON(WIFI_SETTINGS_FILE, wifiSettings);
+    require('http').createServer(onPageRequest).listen(80);
+  });
+}
+
+function connectToWifi(ssid, password) {
+  wifi.connect(ssid, { password: password }, function (err) {
+    if (err) {
+      console.log('Connection error: ' + err);
+      startWifiAP();
+      return;
+    }
+    console.log('Connected!');
+    onWiFiConnected();
+  });
+}
+
+function startWifiAP() {
+  wifi.startAP('Espruino_Server', {}, onWiFiConnected);
+}
+
+function readTemperatureSensor() {
+  return new Promise((resolve) => {
+    dht.connect(DHT_PIN).read(resolve);
+  });
+}
+
+// css styles to use on html
 const cssStyle = `
 <style>
   body { font-size: 50px; }
@@ -27,20 +81,15 @@ const cssStyle = `
     font-size: 30px;
     width: 300px;
   }
+  button {
+    height: 50px;
+    width: 100px;
+  }
 </style>
-`
-
-// Inits when turning on led blink modes
-let intervalId;
-
-function readTemperatureSensor() {
-  return new Promise((resolve) => {
-    dht.connect(DHT_PIN).read(resolve);
-  });
-}
+`;
 
 // This serves up the webpage itself
-function sendPage(res) {
+function sendIndexPage(res) {
   readTemperatureSensor()
     .then((data) => {
       const html = `
@@ -53,30 +102,30 @@ function sendPage(res) {
       </p></p>
       <label><b>LED Settings:</b></label>
       </p></p>
-      <form action="#" method="post">
-        <label for="frequency">Frequency (ms):</label>
-        <input type="number" id="frequency" name="frequency" value="${postData.frequency || 200}"/>
+      <form action='#' method='post'>
+        <label for='frequency'>Frequency (ms):</label>
+        <input type='number' id='frequency' name='frequency' value='${postData.frequency || 200}'/>
         </p></p>
-        <label for="ledMode">Led mode:</label>
-        <select name="ledMode" id="ledMode">
-          <option value="blink" ${postData.ledMode === "blink" ? "selected" : ""}>Blink</option>
-          <option value="blinkHalf" ${postData.ledMode === "blinkHalf" ? "selected" : ""}>Blink half</option>
-          <option value="runningDots" ${postData.ledMode === "runningDots" ? "selected" : ""}>Running dots</option>
-          <option value="rainbow" ${postData.ledMode === "rainbow" ? "selected" : ""}>Rainbow</option>
+        <label for='ledMode'>Led mode:</label>
+        <select name='ledMode' id='ledMode'>
+          <option value='blink' ${postData.ledMode === 'blink' ? 'selected' : ''}>Blink</option>
+          <option value='blinkHalf' ${postData.ledMode === 'blinkHalf' ? 'selected' : ''}>Blink half</option>
+          <option value='runningDots' ${postData.ledMode === 'runningDots' ? 'selected' : ''}>Running dots</option>
+          <option value='rainbow' ${postData.ledMode === 'rainbow' ? 'selected' : ''}>Rainbow</option>
         </select>
         </p></p>
-        <label for="color">Color:</label>
-        <select name="color" id="color">
-          <option value="white" ${postData.color === "white" ? "selected" : ""}>White</option>
-          <option value="red" ${postData.color === "red" ? "selected" : ""}>Red</option>
-          <option value="yellow" ${postData.color === "yellow" ? "selected" : ""}>Yellow</option>
-          <option value="blue" ${postData.color === "blue" ? "selected" : ""}>Blue</option>
-          <option value="green" ${postData.color === "green" ? "selected" : ""}>Green</option>
-          <option value="random" ${postData.color === "random" ? "selected" : ""}>Random</option>
+        <label for='color'>Color:</label>
+        <select name='color' id='color'>
+          <option value='white' ${postData.color === 'white' ? 'selected' : ''}>White</option>
+          <option value='red' ${postData.color === 'red' ? 'selected' : ''}>Red</option>
+          <option value='yellow' ${postData.color === 'yellow' ? 'selected' : ''}>Yellow</option>
+          <option value='blue' ${postData.color === 'blue' ? 'selected' : ''}>Blue</option>
+          <option value='green' ${postData.color === 'green' ? 'selected' : ''}>Green</option>
+          <option value='random' ${postData.color === 'random' ? 'selected' : ''}>Random</option>
         </select>
         </p></p>
-        <label for="ledEnabled">Enable Led:</label>
-        <input type="checkbox" id="ledEnabled" name="ledEnabled" value="1" ${postData.ledEnabled ? "checked" : ""}>
+        <label for='ledEnabled'>Enable Led:</label>
+        <input type='checkbox' id='ledEnabled' name='ledEnabled' value='1' ${postData.ledEnabled ? 'checked' : ''}>
         </p></p>
         <button>Submit</button>
       </form>
@@ -92,17 +141,17 @@ function sendWiFiPage(res) {
   <html>
   ${cssStyle}
     <body>
-    <form action="#" method="post" onsubmit="alert('Reboot the microcontroller to apply settings');">
+    <form action='#' method='post' onsubmit='alert("Reboot the microcontroller to apply settings");'>
       <label>Last IP: ${wifiSettings && wifiSettings.lastIp || ''}</label>
       </p></p>
-      <label for="ssid">SSID:</label>
-      <input type="text" id="ssid" name="ssid" value="${wifiSettings && wifiSettings.ssid || ''}"/>
+      <label for='ssid'>SSID:</label>
+      <input type='text' id='ssid' name='ssid' value='${wifiSettings && wifiSettings.ssid || ''}'/>
       </p></p>
-      <label for="password">Password:</label>
-      <input type="password" id="password" name="password" value="${wifiSettings && wifiSettings.password || ''}"/>
+      <label for='password'>Password:</label>
+      <input type='password' id='password' name='password' value='${wifiSettings && wifiSettings.password || ''}'/>
       </p></p>
-      <label for="startApMode">Start access point mode:</label>
-      <input type="checkbox" id="startApMode" name="startApMode" value="0" ${wifiSettings && wifiSettings.startApMode ? "checked" : ""}>
+      <label for='startApMode'>Start access point mode:</label>
+      <input type='checkbox' id='startApMode' name='startApMode' value='0' ${wifiSettings && wifiSettings.startApMode ? 'checked' : ''}>
       </p></p>
       <button>Submit</button>
     </form>
@@ -113,43 +162,50 @@ function sendWiFiPage(res) {
   res.end(html);
 }
 
+function redirectToIndex(res) {
+  res.writeHead(302, {
+    'Location': '/'
+  });
+  res.end();
+}
+
 // This handles the HTTP request itself and serves up the webpage or a
 // 404 not found page
 function onPageRequest(req, res) {
   const parsedUrl = url.parse(req.url, true);
-  if (parsedUrl.pathname == "/wifi") {
-    if (req.method == "POST" && req.headers["Content-Type"] == "application/x-www-form-urlencoded") {
-      saveWiFiSettings(req, function () { sendPage(res); });
+  if (parsedUrl.pathname == '/wifi') {
+    if (req.method == 'POST' && req.headers['Content-Type'] == 'application/x-www-form-urlencoded') {
+      handleWiFiSettings(req, function () { redirectToIndex(res); });
     } else {
       sendWiFiPage(res);
     }
-  } else if (parsedUrl.pathname == "/") {
+  } else if (parsedUrl.pathname == '/') {
     // handle the '/' (root) page...
     // If we had a POST, handle the data we're being given
-    if (req.method == "POST" &&
-      req.headers["Content-Type"] == "application/x-www-form-urlencoded") {
-      handlePOST(req, function () { sendPage(res); });
+    if (req.method == 'POST' &&
+      req.headers['Content-Type'] == 'application/x-www-form-urlencoded') {
+      handleLedSettings(req, function () { redirectToIndex(res); });
     } else {
-      sendPage(res);
+      sendIndexPage(res);
     }
   } else {
     // Page not found - return 404
     res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end("404: Page " + parsedUrl.pathname + " not found");
+    res.end('404: Page ' + parsedUrl.pathname + ' not found');
   }
 }
 
 // This handles any received data from the POST request
-function handlePOST(req, callback) {
-  var data = "";
+function handleLedSettings(req, callback) {
+  var data = '';
   req.on('data', function (d) { data += d; });
   req.on('end', function () {
     // All data received from the client, so handle the url encoded data we got
     // If we used 'close' then the HTTP request would have been closed and we
     // would be unable to send the result page.
     postData = {};
-    data.split("&").forEach(function (el) {
-      const els = el.split("=");
+    data.split('&').forEach(function (el) {
+      const els = el.split('=');
       postData[els[0]] = decodeURIComponent(els[1]);
     });
     // finally our data is in postData
@@ -164,20 +220,22 @@ function handlePOST(req, callback) {
   });
 }
 
-function saveWiFiSettings(req, callback) {
-  var data = "";
+function handleWiFiSettings(req, callback) {
+  var data = '';
   req.on('data', function (d) { data += d; });
   req.on('end', function () {
     wifiSettings = {};
-    data.split("&").forEach(function (el) {
-      const els = el.split("=");
+    data.split('&').forEach(function (el) {
+      const els = el.split('=');
       wifiSettings[els[0]] = decodeURIComponent(els[1]);
     });
     storage.writeJSON(WIFI_SETTINGS_FILE, wifiSettings);
-    // call our callback (to send the HTML result)
     callback();
   });
 }
+
+// Inits when turning on led blink modes
+let intervalId;
 
 function setupLed(postData) {
   disableLed();
@@ -215,6 +273,19 @@ function getColorInGrb(colorName) {
   }
 
   return [Math.random() * 255, Math.random() * 255, Math.random() * 255];
+}
+
+function disableLed() {
+  if (intervalId !== undefined) {
+    clearInterval(intervalId);
+    intervalId = undefined;
+  }
+
+  const arr = [];
+  for (let i = 0; i < PIXELS_COUNT * 3; i++) {
+    arr[i] = 0;
+  }
+  neopixel.write(LED_STRIP_PIN, arr);
 }
 
 function blinkMode(color, frequency) {
@@ -327,60 +398,3 @@ function rainbowMode(frequency) {
     neopixel.write(LED_STRIP_PIN, getPattern());
   }, frequency);
 }
-
-function disableLed() {
-  if (intervalId !== undefined) {
-    clearInterval(intervalId);
-    intervalId = undefined;
-  }
-
-  const arr = [];
-  for (let i = 0; i < PIXELS_COUNT * 3; i++) {
-    arr[i] = 0;
-  }
-  neopixel.write(LED_STRIP_PIN, arr);
-}
-
-// This is called when we have an internet connection
-function onWiFiConnected() {
-  wifi.getIP(function (err, ip) {
-    console.log("Connect to http://" + ip.ip);
-    wifiSettings.lastIp = ip.ip;
-    storage.writeJSON(WIFI_SETTINGS_FILE, wifiSettings);
-    require("http").createServer(onPageRequest).listen(80);
-  });
-}
-
-function connectToWifi(ssid, password) {
-  wifi.connect(ssid, { password: password }, function (err) {
-    if (err) {
-      console.log("Connection error: " + err);
-      return;
-    }
-    console.log("Connected!");
-    onWiFiConnected();
-  });
-}
-
-function startWifiAP() {
-  wifi.startAP('Espruino_Server', {}, onWiFiConnected);
-}
-
-// This function is run on microcontroller start
-function onInit() {
-  try {
-    wifiSettings = storage.readJSON(WIFI_SETTINGS_FILE);
-  } catch (err) {
-    console.log(err.message);
-  }
-
-  console.log(`WiFi settings: ${JSON.stringify(wifiSettings)}`);
-  if (wifiSettings !== undefined && !wifiSettings.startApMode) {
-    connectToWifi(wifiSettings.ssid, wifiSettings.password);
-  } else {
-    startWifiAP();
-  }
-}
-
-// Comment this line out if you chosed to save code in flash
-// onInit();
